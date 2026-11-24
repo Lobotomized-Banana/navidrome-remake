@@ -12,6 +12,11 @@
 </style>
 <div id="status">Loading Navidrome Remake…</div>
 <audio id="nd-audio" preload="none"></audio>
+<script>
+if (new URLSearchParams(location.search).has('forceWebGL')) {
+  Object.defineProperty(navigator, 'gpu', {value: undefined, configurable: true});
+}
+</script>
 <script type="module">
 import init from './app.js';
 try {

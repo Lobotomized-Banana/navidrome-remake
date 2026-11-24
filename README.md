@@ -18,12 +18,14 @@ built with [Rune](https://github.com/anomalyco/rune).
 ### Backend (`navidrome-remake/`)
 
 - **Unicode-aware identity normalization** (`utils/str/identity.go`): NFC folding, accent
-  folding, invisible-character stripping, quote/dash unification and whitespace collapsing are
-  now applied to every identity-building attribute (album artist, album, title). `Björk`,
-  `Björk` (NFD) and `Bjork` now hash to the same entity.
+  folding, invisible-character stripping, quote/dash unification and whitespace collapsing, exposed
+  as opt-in PID attributes (`albumartistid_norm`, `album_norm`, `title_norm`). The legacy
+  attributes are untouched, so an existing Navidrome database can be reused without invalidating
+  stored IDs.
 - **Opt-in enhanced album PID** (`consts.EnhancedAlbumPID`): a configurable `PID.Album` spec that
   prefers a MusicBrainz **release-group** ID over a single release ID, then the album artist's
-  MusicBrainz ID, then normalized names, with a **folder fallback** for untagged files.
+  MusicBrainz ID, then normalized names, with a **folder fallback** for untagged files. Changing a
+  PID spec triggers a documented full rescan.
 - **Various Artists detection** now recognizes `VA`, `Various Artist`, case/accent variants and
   the canonical MusicBrainz ID, not only an empty album artist plus `TCMP`.
 - **Robust tag parsing**: `N/Total`, `N of M`, `N-M` and spaced variants for track/disc numbers;
@@ -83,7 +85,9 @@ To enable the enhanced album identity on a library, set its `PID.Album` (or `pid
 value of `consts.EnhancedAlbumPID`:
 
 ```toml
-PID.Album = "musicbrainz_releasegroupid|musicbrainz_albumid|albumartist_mbid,albumartistid,album,albumversion,releasedate|folder,album,albumartistid"
+PID.Album = "musicbrainz_releasegroupid|musicbrainz_albumid|albumartist_mbid,albumartistid_norm,album_norm,albumversion,releasedate|folder,album_norm,albumartistid_norm"
+# optional matching track spec:
+PID.Track = "musicbrainz_trackid|albumid,discnumber,tracknumber,title_norm"
 ```
 
 Changing the PID spec forces a full rescan; existing annotations are migrated by Navidrome's

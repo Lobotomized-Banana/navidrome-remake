@@ -68,6 +68,16 @@ without a proxy.
 - The built site was served and opened in Chromium: the login screen rendered with no console
   errors and the wasm/snippets/font requests all returned 200
 
+## WebGL2 note
+
+Rune's WebGL2 fallback failed on some drivers because `clip.wgsl` used `select()` on `u32`
+vectors, which Naga emits as GLSL `mix(uint, uint, bool)` — not valid in GLSL ES. The Rune
+clone in this workspace patches `unpack_f16x2` to use scalar bit-masks instead. The fix is
+compiled into `dist/app_bg.wasm`.
+
+Add `?forceWebGL` to the URL to disable `navigator.gpu` and exercise the WebGL2 path for
+diagnostics.
+
 ## Limitations
 
 - Rune's web support is experimental. This app enables Rune's `webgl` feature, so it falls back to

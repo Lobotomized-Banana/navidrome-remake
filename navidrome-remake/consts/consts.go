@@ -166,11 +166,16 @@ const (
 	//     different releases of the same album stay grouped;
 	//   - the album artist's MusicBrainz ID is considered before its display
 	//     name, so renames/spelling variants do not split an album;
-	//   - all name-based attributes are Unicode-normalized;
+	//   - all name-based attributes are Unicode-normalized (the *_norm attributes);
 	//   - a final (folder, album, albumartistid) fallback keeps distinct albums
 	//     that happen to share a name in different folders separate.
-	// Set PID.Album (or a library's pid_album) to this value to enable it.
-	EnhancedAlbumPID = "musicbrainz_releasegroupid|musicbrainz_albumid|albumartist_mbid,albumartistid,album,albumversion,releasedate|folder,album,albumartistid"
+	// Set PID.Album (or a library's pid_album) to this value to enable it. Changing
+	// the spec triggers a full rescan, so take a DB backup first.
+	EnhancedAlbumPID = "musicbrainz_releasegroupid|musicbrainz_albumid|albumartist_mbid,albumartistid_norm,album_norm,albumversion,releasedate|folder,album_norm,albumartistid_norm"
+
+	// EnhancedTrackPID is the matching opt-in track spec. It is optional: album
+	// identity can be changed on its own with the default track spec.
+	EnhancedTrackPID = "musicbrainz_trackid|albumid,discnumber,tracknumber,title_norm"
 )
 
 const (

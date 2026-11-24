@@ -20,11 +20,18 @@ func TestIdentityNormalizationStabilizesAlbumID(t *testing.T) {
 	md2 := Metadata{tags: map[model.TagName][]string{model.TagAlbum: {"Debut"}}}
 	mf2 := model.MediaFile{AlbumArtist: "Bjo\u0308rk", Title: "Debut"}
 
-	id1 := computePID(mf1, md1, consts.DefaultAlbumPID, consts.DefaultAlbumPID, false, testHash)
-	id2 := computePID(mf2, md2, consts.DefaultAlbumPID, consts.DefaultAlbumPID, false, testHash)
+	// Default spec must stay byte-compatible with existing libraries.
+	legacy1 := computePID(mf1, md1, consts.DefaultAlbumPID, consts.DefaultAlbumPID, false, testHash)
+	legacy2 := computePID(mf2, md2, consts.DefaultAlbumPID, consts.DefaultAlbumPID, false, testHash)
+	if legacy1 == legacy2 {
+		t.Fatal("default album PID unexpectedly changed; existing libraries would be rescanned")
+	}
 
+	// Opt-in enhanced spec converges the same names.
+	id1 := computePID(mf1, md1, consts.EnhancedAlbumPID, consts.EnhancedAlbumPID, false, testHash)
+	id2 := computePID(mf2, md2, consts.EnhancedAlbumPID, consts.EnhancedAlbumPID, false, testHash)
 	if id1 != id2 {
-		t.Fatalf("accented/decomposed names must share an album ID: %q != %q", id1, id2)
+		t.Fatalf("accented/decomposed names must share an enhanced album ID: %q != %q", id1, id2)
 	}
 	if !strings.Contains(id1, "bjork\\debut") {
 		t.Fatalf("expected normalized attributes in PID, got %q", id1)
@@ -97,9 +104,30 @@ func TestEnhancedAlbumPIDFallsBackToFolder(t *testing.T) {
 	}
 }
 
-func TestEnhancedAlbumPIDSpecValidates(t *testing.T) {
+func TestEnhancedTrackPIDUsesNormalizedTitle(t *testing.T) {
+	tests.Init(t, true)
+	mk := func(title string) model.MediaFile {
+		return model.MediaFile{AlbumID: "album", Title: title, Path: "/music/a.mp3"}
+	}
+	md := Metadata{tags: map[model.TagName][]string{}}
+	legacy1 := computePID(mk("Track One"), md, consts.DefaultTrackPID, consts.DefaultAlbumPID, false, testHash)
+	legacy2 := computePID(mk("track one"), md, consts.DefaultTrackPID, consts.DefaultAlbumPID, false, testHash)
+	if legacy1 == legacy2 {
+		t.Fatal("default track PID unexpectedly changed")
+	}
+	enh1 := computePID(mk("Track One"), md, consts.EnhancedTrackPID, consts.EnhancedAlbumPID, false, testHash)
+	enh2 := computePID(mk("track one"), md, consts.EnhancedTrackPID, consts.EnhancedAlbumPID, false, testHash)
+	if enh1 != enh2 {
+		t.Fatalf("enhanced track PID should be case-insensitive: %q != %q", enh1, enh2)
+	}
+}
+
+func TestEnhancedPIDSpecsValidate(t *testing.T) {
 	tests.Init(t, true)
 	if err := ValidatePIDSpec(consts.EnhancedAlbumPID, true); err != nil {
 		t.Fatalf("enhanced album PID must be a valid spec: %v", err)
+	}
+	if err := ValidatePIDSpec(consts.EnhancedTrackPID, false); err != nil {
+		t.Fatalf("enhanced track PID must be a valid spec: %v", err)
 	}
 }

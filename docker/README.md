@@ -101,8 +101,12 @@ page origin; change it only if you access the app through a different hostname/b
 
 ## Notes / limitations
 
-- The frontend needs WebGPU or WebGL2. The image is built with Rune's `webgl` fallback; use a
-  current Chrome/Edge/Firefox browser.
+- The frontend needs WebGPU or WebGL2. The image is built with Rune's `webgl` fallback, which is
+  patched in this workspace (Rune's `clip.wgsl` used `select()` on `u32` vectors, which becomes an
+  invalid GLSL `mix()` on WebGL2). `docker/webui-dist-fixed.tar.gz` contains the patched WASM
+  bundle if you only need to refresh the frontend in an existing repo.
+- Add `?forceWebGL` to the app URL to test the WebGL2 path explicitly.
+- WebGPU requires a secure context (HTTPS or localhost); WebGL2 works over plain HTTP too.
 - This is a remake/fork, not the official Navidrome image. Pin a specific tag rather than `latest`
   if you want reproducible upgrades; the workflow publishes commit SHAs and tags too.
 - Navidrome's React UI is replaced by the Rune UI. The Go API, scanner and Subsonic endpoints are

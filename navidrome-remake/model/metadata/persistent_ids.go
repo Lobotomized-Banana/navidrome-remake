@@ -71,17 +71,24 @@ func getPIDAttr(mf model.MediaFile, md Metadata, attr string, prependLibId bool,
 	case "folder":
 		return filepath.Dir(mf.Path)
 	case "albumartistid":
-		// Use the same Unicode-aware normalization for every identity-building
-		// attribute. Without it, "Björk"/"Bjork" and NFC/NFD spellings produce
-		// different artist and album IDs for what is audibly the same release.
+		// Legacy spelling: keep byte-for-byte compatibility with existing
+		// libraries. Changed values would silently invalidate stored PIDs.
+		return hash(str.Clear(strings.ToLower(mf.AlbumArtist)))
+	case "albumartistid_norm":
+		// Opt-in Unicode-aware identity: NFC + accent folding + whitespace
+		// collapsing, so "Björk", "Bjo\u0308rk" and "Bjork" converge.
 		return hash(str.NormalizeForIdentity(mf.AlbumArtist))
 	case "mbz_releasegroupid":
 		return md.String(model.TagMusicBrainzReleaseGroupID)
 	case "albumartist_mbid":
 		return mf.Participants.First(model.RoleAlbumArtist).MbzArtistID
 	case "title":
+		return mf.Title
+	case "title_norm":
 		return str.NormalizeForIdentity(mf.Title)
 	case "album":
+		return str.Clear(strings.ToLower(md.String(model.TagAlbum)))
+	case "album_norm":
 		return str.NormalizeForIdentity(md.String(model.TagAlbum))
 	}
 	return md.String(model.TagName(attr))
@@ -104,7 +111,8 @@ func ValidatePIDSpec(spec string, isAlbum bool) error {
 				if isAlbum {
 					return errors.New("albumid cannot be used in an album PID")
 				}
-			case "folder", "albumartistid", "mbz_releasegroupid", "albumartist_mbid":
+			case "folder", "albumartistid", "albumartistid_norm", "title_norm", "album_norm",
+				"mbz_releasegroupid", "albumartist_mbid":
 			default:
 				name, ok := model.CanonicalTagName(attr)
 				if !ok {

@@ -75,8 +75,9 @@ var _ = Describe("getPID", func() {
 				md.tags = map[model.TagName][]string{"title": {"title"}}
 				md.filePath = "/path/to/file.mp3"
 				mf.Title = "Title"
-				// Identity attributes are Unicode/case normalized in the remake.
-				Expect(getPID(mf, md, spec, false)).To(Equal("(title)"))
+				// Default specs stay byte-compatible with existing libraries;
+				// normalization is opt-in via the *_norm attributes.
+				Expect(getPID(mf, md, spec, false)).To(Equal("(Title)"))
 			})
 		})
 		When("field is folder", func() {

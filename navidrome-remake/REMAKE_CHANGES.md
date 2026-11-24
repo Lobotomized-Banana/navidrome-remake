@@ -11,16 +11,20 @@ collapsing. `IdentityEquals` and `TruncateRunesSafe` are helpers.
 
 This is intentionally separate from `str.Clear`, which other code (sort fields) relies on.
 
-Used in `model/metadata/persistent_ids.go` for the `albumartistid`, `album` and `title` PID
-attributes and for `Metadata.artistID`. Result: tracks tagged with different Unicode spellings
-of the same name now converge on one artist/album instead of producing duplicates.
+**Opt-in only.** Normalization is exposed as new PID attributes (`albumartistid_norm`, `album_norm`,
+`title_norm`) used by `EnhancedAlbumPID` / `EnhancedTrackPID`. The legacy attributes keep their
+exact old computation, so pointing the remake at an existing Navidrome database does not invalidate
+stored IDs or trigger a surprise full rescan.
 
 ### Opt-in enhanced album PID — `consts.EnhancedAlbumPID`
 ```
 musicbrainz_releasegroupid | musicbrainz_albumid |
-albumartist_mbid,albumartistid,album,albumversion,releasedate |
-folder,album,albumartistid
+albumartist_mbid,albumartistid_norm,album_norm,albumversion,releasedate |
+folder,album_norm,albumartistid_norm
 ```
+
+Matching opt-in track spec: `EnhancedTrackPID =
+"musicbrainz_trackid|albumid,discnumber,tracknumber,title_norm"`.
 
 `computePID` keeps its "first non-empty field wins" semantics. The new order means:
 1. A release-group MBID wins outright — releases of the same album stay grouped even when their
