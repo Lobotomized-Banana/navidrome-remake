@@ -415,7 +415,12 @@ fn now_playing(s: &State, t: &rune::tok::Theme) -> El {
 }
 
 fn login_view(s: &State, t: &rune::tok::Theme, top: f32, right: f32, bottom: f32, left: f32) -> El {
-    let field = |key: &'static str, label: &'static str, secure: bool, edit: &TextEdit| -> El {
+    let field = |key: &'static str,
+                 label: &'static str,
+                 secure: bool,
+                 edit: &TextEdit,
+                 access: for<'a> fn(&'a mut State) -> &'a mut TextEdit|
+     -> El {
         let input = text_input(edit, tok::type_::BODY)
             .key(key)
             .placeholder(label, t.text_secondary)
@@ -424,7 +429,8 @@ fn login_view(s: &State, t: &rune::tok::Theme, top: f32, right: f32, bottom: f32
             .h(46.0)
             .padding(10.0)
             .radius(10.0)
-            .fill(t.card);
+            .fill(t.card)
+            .on_edit(access);
         let input = if secure { input.secure() } else { input };
         col().w_full().gap(4.0)
             .child(text(label).font(tok::type_::LABEL).color(t.text_secondary))
@@ -435,9 +441,9 @@ fn login_view(s: &State, t: &rune::tok::Theme, top: f32, right: f32, bottom: f32
         .child(text("Navidrome Remake").font(tok::type_::TITLE).color(t.text))
         .child(text(if s.first_time { "Create your admin account" } else { "Sign in to your music server" })
             .font(tok::type_::BODY).color(t.text_secondary))
-        .child(field("server", "Server URL", false, &s.server).w(320.0))
-        .child(field("username", "Username", false, &s.username).w(320.0))
-        .child(field("password", "Password", true, &s.password).w(320.0))
+        .child(field("server", "Server URL", false, &s.server, |s| &mut s.server).w(320.0))
+        .child(field("username", "Username", false, &s.username, |s| &mut s.username).w(320.0))
+        .child(field("password", "Password", true, &s.password, |s| &mut s.password).w(320.0))
         .child(el().key("login").w(320.0).h(46.0).center().radius(10.0)
             .fill(tok::accent(0, true))
             .on_press(login)
@@ -512,7 +518,7 @@ pub fn start() {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
-    use rune::{Env, Runtime};
+    use rune::{Env, Key, KeyEvent, Mods, Runtime};
 
     fn env() -> Env {
         Env { system_dark: true, scale: 2.0 }
@@ -537,6 +543,36 @@ mod tests {
         assert!(rt.find("album-al-1").is_some(), "Abbey Road row is missing");
         assert!(rt.find("album-al-2").is_some(), "Debut row is missing");
         assert!(rt.find("now-playing").is_some());
+    }
+
+    #[test]
+    fn minimal_input_focus_check() {
+        struct S { t: TextEdit }
+        fn v(s: &S, _: &mut Cx<S>) -> El {
+            text_input(&s.t, tok::type_::BODY).key("f").size(200.0, 40.0).on_edit(|s: &mut S| &mut s.t)
+        }
+        let mut rt = Runtime::new(S { t: TextEdit::new("") }, v, (400.0, 200.0), env());
+        rt.frame(0.0);
+        let (x, y) = rt.find("f").unwrap();
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(0.0);
+        rt.key(KeyEvent { key: Key::Text("x".into()), mods: Mods::default() });
+        rt.frame(0.0);
+        assert_eq!(rt.state.t.text, "x");
+    }
+
+    #[test]
+    fn login_fields_accept_click_and_typed_text() {
+        let mut rt = Runtime::new(State::default(), view, (1100.0, 760.0), env());
+        rt.frame(0.0);
+        let (x, y) = rt.find("username").expect("username field not found");
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(0.0);
+        rt.key(KeyEvent { key: Key::Text("admin".into()), mods: Mods::default() });
+        rt.frame(0.0);
+        assert_eq!(rt.state.username.text, "admin", "clicking then typing must fill the field");
     }
 
     #[test]
