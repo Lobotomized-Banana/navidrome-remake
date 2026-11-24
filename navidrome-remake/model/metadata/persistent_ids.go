@@ -74,6 +74,10 @@ func getPIDAttr(mf model.MediaFile, md Metadata, attr string, prependLibId bool,
 		// Legacy spelling: keep byte-for-byte compatibility with existing
 		// libraries. Changed values would silently invalidate stored PIDs.
 		return hash(str.Clear(strings.ToLower(mf.AlbumArtist)))
+	case "artistid_norm":
+		// Spotify-like artist identity: accent/case/whitespace insensitive,
+		// with performance aliases and CV qualifiers removed.
+		return hash(str.NormalizeArtistName(mf.AlbumArtist))
 	case "albumartistid_norm":
 		// Opt-in Unicode-aware identity: NFC + accent folding + whitespace
 		// collapsing, so "Björk", "Bjo\u0308rk" and "Bjork" converge.
@@ -111,7 +115,7 @@ func ValidatePIDSpec(spec string, isAlbum bool) error {
 				if isAlbum {
 					return errors.New("albumid cannot be used in an album PID")
 				}
-			case "folder", "albumartistid", "albumartistid_norm", "title_norm", "album_norm",
+			case "folder", "albumartistid", "albumartistid_norm", "artistid_norm", "title_norm", "album_norm",
 				"mbz_releasegroupid", "albumartist_mbid":
 			default:
 				name, ok := model.CanonicalTagName(attr)
@@ -139,7 +143,7 @@ func (md Metadata) albumID(mf model.MediaFile, pidConf string) string {
 
 func (md Metadata) artistID(name string) string {
 	mf := model.MediaFile{AlbumArtist: name}
-	return computePID(mf, md, "albumartistid", "", false, id.NewHash)
+	return computePID(mf, md, "artistid_norm", "", false, id.NewHash)
 }
 
 // AlbumIDEvidence reports which part of the PID spec was used to identify an

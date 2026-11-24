@@ -18,6 +18,7 @@ enum Tab {
     Artists,
     Search,
     Favorites,
+    Settings,
 }
 
 #[derive(Clone)]
@@ -49,6 +50,9 @@ struct State {
     album_songs: Vec<Song>,
     search: api::SearchResults,
 
+    // Admin
+    admin_status: String,
+
     // Runtime
     images: Option<ImageCache>,
     handle: Option<AppHandle<State>>,
@@ -75,6 +79,7 @@ impl Default for State {
             artist_albums: Vec::new(),
             album_songs: Vec::new(),
             search: api::SearchResults::default(),
+            admin_status: String::new(),
             images: None,
             handle: None,
             pending: None,
@@ -156,7 +161,47 @@ fn reload(s: &mut State) {
 fn navigate(s: &mut State, tab: Tab) {
     s.tab = tab;
     s.detail = None;
+    if tab == Tab::Settings {
+        s.admin_status.clear();
+        return;
+    }
     reload(s);
+}
+
+fn admin_cmd(s: &mut State, command: &'static str) {
+    let Some(handle) = s.handle.clone() else { return };
+    let base = s.server.text.clone();
+    let auth = s.auth.clone();
+    s.admin_status = "Working…".into();
+
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_futures::spawn_local(async move {
+        let result = api::command(&base, &auth, command, "").await;
+        handle.update(move |s, tx| {
+            s.admin_status = match result {
+                Ok(v) if v["status"] == "ok" => {
+                    if command == "getScanStatus" {
+                        format!(
+                            "Scan status: {} · {} files indexed",
+                            v["scanStatus"]["scanning"].as_bool().unwrap_or(false),
+                            v["scanStatus"]["count"].as_u64().unwrap_or(0)
+                        )
+                    } else {
+                        "Command accepted".into()
+                    }
+                }
+                Ok(v) => format!("Server error: {}", v["error"]["message"].as_str().unwrap_or("unknown")),
+                Err(e) => e,
+            };
+            tx.instant();
+        });
+    });
+
+    #[cfg(not(target_arch = "wasm32"))]
+    handle.update(move |s, tx| {
+        s.admin_status = format!("{command} accepted (demo)");
+        tx.instant();
+    });
 }
 
 fn login(s: &mut State) {
@@ -252,6 +297,11 @@ fn view(s: &State, cx: &mut Cx<State>) -> El {
         .child(tab_button("Artists", Tab::Artists, s.tab == Tab::Artists && s.detail.is_none()))
         .child(tab_button("Search", Tab::Search, s.tab == Tab::Search && s.detail.is_none()))
         .child(tab_button("Favorites", Tab::Favorites, s.tab == Tab::Favorites && s.detail.is_none()));
+    let sidebar = if s.auth.is_admin {
+        sidebar.child(tab_button("Settings", Tab::Settings, s.tab == Tab::Settings && s.detail.is_none()))
+    } else {
+        sidebar
+    };
 
     let mut content = col().key("content").w_full().gap(8.0).padding(14.0);
     if s.detail.is_some() {
@@ -351,6 +401,9 @@ fn view(s: &State, cx: &mut Cx<State>) -> El {
                     content = content.child(song_row(song, &s.server.text, &s.auth, &t));
                 }
             }
+            Tab::Settings => {
+                content = settings_view(s, &t);
+            }
         },
     }
 
@@ -370,6 +423,31 @@ fn view(s: &State, cx: &mut Cx<State>) -> El {
             .child(col().key("scroll").w_full().grow(1.0).min_h(0.0)
                 .scroll(ScrollSpec { stick_bottom: false }).child(content)))
         .child(now_playing(s, &t))
+}
+
+fn settings_view(s: &State, t: &rune::tok::Theme) -> El {
+    let button = |key: &'static str, label: &'static str, command: &'static str| -> El {
+        el().key(key).w(260.0).h(42.0).center().radius(9.0).fill(t.control_off)
+            .on_press(move |s: &mut State| admin_cmd(s, command))
+            .child(text(label).font(tok::type_::LABEL).color(t.text))
+    };
+
+    col().w_full().gap(12.0).padding(6.0)
+        .child(text("Settings").font(tok::type_::TITLE).color(t.text))
+        .child(col().w_full().gap(4.0).padding(12.0).radius(10.0).fill(t.card)
+            .child(text("Server").font(tok::type_::LABEL).color(t.text_secondary))
+            .child(text(format!("Version {}", api::config_string("version"))).font(tok::type_::BODY).color(t.text))
+            .child(text(format!("Base path {}", api::config_string("baseURL"))).font(tok::type_::BODY).color(t.text))
+            .child(text(format!("Signed in as {}", s.auth.username)).font(tok::type_::BODY).color(t.text)))
+        .child(col().w_full().gap(4.0).padding(12.0).radius(10.0).fill(t.card)
+            .child(text("Artist parsing").font(tok::type_::LABEL).color(t.text_secondary))
+            .child(text("Accent/case-insensitive identities, collaboration splitting, alias and CV cleanup").font(tok::type_::BODY).color(t.text))
+            .child(text("Changes apply to newly scanned files; run a full scan to rebuild all artists.").font(tok::type_::BODY).color(t.text_secondary)))
+        .child(col().w_full().gap(8.0).padding(12.0).radius(10.0).fill(t.card)
+            .child(text("Library").font(tok::type_::LABEL).color(t.text_secondary))
+            .child(button("start-scan", "Start full scan", "startScan"))
+            .child(button("scan-status", "Check scan status", "getScanStatus"))
+            .child(text(s.admin_status.clone()).font(tok::type_::BODY).color(t.text_secondary)))
 }
 
 fn album_row(album: &Album, cover: &impl Fn(&str, String, f32) -> El, t: &rune::tok::Theme) -> El {
@@ -479,6 +557,12 @@ const SCENES: &[(&str, fn(&mut State))] = &[
         s.auth = api::demo_auth();
         s.artists = api::demo_payload(Request::Artists).artists;
     }),
+    ("settings", |s| {
+        s.logged_in = true;
+        s.tab = Tab::Settings;
+        s.auth = api::demo_auth();
+        s.admin_status = "Ready".into();
+    }),
     ("album", |s| {
         s.logged_in = true;
         s.tab = Tab::Albums;
@@ -576,9 +660,20 @@ mod tests {
     }
 
     #[test]
-    fn album_scene_lists_tracks() {
+    fn admin_settings_scene_has_scan_actions() {
         let mut state = State::default();
         SCENES[4].1(&mut state);
+        let mut rt = Runtime::new(state, view, (1100.0, 760.0), env());
+        rt.frame(0.0);
+        assert!(rt.find("start-scan").is_some());
+        assert!(rt.find("scan-status").is_some());
+        assert!(rt.find("tab-Settings").is_some());
+    }
+
+    #[test]
+    fn album_scene_lists_tracks() {
+        let mut state = State::default();
+        SCENES[5].1(&mut state);
         let mut rt = Runtime::new(state, view, (1100.0, 760.0), env());
         rt.frame(0.0);
         assert!(rt.find("song-mf-1").is_some());

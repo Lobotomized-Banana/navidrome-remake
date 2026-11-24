@@ -174,6 +174,9 @@ func (md Metadata) parseArtists(
 func (md Metadata) buildArtists(names, sorts, mbids []string) []model.Artist {
 	var artists []model.Artist
 	for i, name := range names {
+		// Identity comes from the normalized name. An MBID is stored as metadata
+		// but not used as the ID: files without MBIDs must still merge with the
+		// ones that have it (see scanner regression tests).
 		id := md.artistID(name)
 		artist := model.Artist{
 			ID:              id,

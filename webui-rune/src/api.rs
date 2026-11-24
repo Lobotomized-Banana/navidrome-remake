@@ -13,6 +13,7 @@ pub struct Auth {
     pub token: String,
     pub subsonic_salt: String,
     pub subsonic_token: String,
+    pub is_admin: bool,
 }
 
 #[derive(Clone, Default, Deserialize)]
@@ -243,6 +244,18 @@ fn config() -> serde_json::Value {
     serde_json::from_str(&ndConfig()).unwrap_or_default()
 }
 
+pub fn config_string(key: &str) -> String {
+    #[cfg(target_arch = "wasm32")]
+    {
+        config()[key].as_str().unwrap_or("").to_string()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = key;
+        String::new()
+    }
+}
+
 pub fn first_time() -> bool {
     #[cfg(target_arch = "wasm32")]
     {
@@ -344,6 +357,27 @@ pub async fn load(url: &str, auth: &Auth, req: Request) -> Result<Payload, Strin
     parse_envelope(&text)
 }
 
+/// Call a Subsonic command and return the raw `subsonic-response` object.
+#[cfg(target_arch = "wasm32")]
+pub async fn command(url: &str, auth: &Auth, name: &str, extra: &str) -> Result<serde_json::Value, String> {
+    let endpoint = format!(
+        "{}/rest/{}?{}{}",
+        base(url),
+        name,
+        auth.query(),
+        extra
+    );
+    let text = http(&endpoint, "GET", None).await?;
+    let envelope: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("Could not parse server response: {e}"))?;
+    Ok(envelope["subsonic-response"].clone())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn command(_url: &str, _auth: &Auth, _name: &str, _extra: &str) -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({"status": "ok", "scanStatus": {"scanning": false, "count": 0}}))
+}
+
 // ---------------------------------------------------------------------------
 // Native demo transport (used for headless `--snap` / `--tree` checks)
 // ---------------------------------------------------------------------------
@@ -355,6 +389,7 @@ pub fn demo_auth() -> Auth {
         subsonic_salt: "00ff".into(),
         subsonic_token: "demo".into(),
         token: "demo".into(),
+        is_admin: true,
     }
 }
 
@@ -432,6 +467,7 @@ mod tests {
             subsonic_token: "tok".into(),
             subsonic_salt: "salt".into(),
             token: "jwt".into(),
+            is_admin: true,
         };
         assert!(auth.query().contains("f=json"), "Subsonic defaults to XML");
         assert!(stream_url("http://host", &auth, "mf-1").contains("f=json"));

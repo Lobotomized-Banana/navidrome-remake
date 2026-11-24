@@ -28,6 +28,9 @@ built with [Rune](https://github.com/anomalyco/rune).
   PID spec triggers a documented full rescan.
 - **Various Artists detection** now recognizes `VA`, `Various Artist`, case/accent variants and
   the canonical MusicBrainz ID, not only an empty album artist plus `TCMP`.
+- **Spotify-like artist identities**: accent/case/whitespace-insensitive artist IDs, `vs`/`&`/`+`
+  collaboration splitting, and cleanup of `as "Alias"` and `(CV. …)` qualifiers.
+- **Admin Settings tab** in the Rune UI (server info, artist-parsing notes, full scan + scan status).
 - **Robust tag parsing**: `N/Total`, `N of M`, `N-M` and spaced variants for track/disc numbers;
   a malformed value no longer overwrites an explicit `tracktotal`. Boolean tags accept `yes/y/on`.
   Dates accept `2014.05.21`, `2014/05/21` and ISO timestamps, with calendar validation and
