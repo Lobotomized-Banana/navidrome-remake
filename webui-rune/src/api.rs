@@ -81,7 +81,7 @@ impl Auth {
     /// Subsonic authentication query parameters.
     fn query(&self) -> String {
         format!(
-            "u={}&t={}&s={}&v=1.16.1&c=NaviRune",
+            "u={}&t={}&s={}&v=1.16.1&c=NaviRune&f=json",
             pct(&self.username),
             pct(&self.subsonic_token),
             pct(&self.subsonic_salt)
@@ -419,6 +419,24 @@ pub fn play_stream(stream_url: &str) {
 pub fn pause() {
     #[cfg(target_arch = "wasm32")]
     ndPause();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn subsonic_requests_json() {
+        let auth = Auth {
+            username: "admin".into(),
+            subsonic_token: "tok".into(),
+            subsonic_salt: "salt".into(),
+            token: "jwt".into(),
+        };
+        assert!(auth.query().contains("f=json"), "Subsonic defaults to XML");
+        assert!(stream_url("http://host", &auth, "mf-1").contains("f=json"));
+        assert!(cover_url("http://host", &auth, "al-1", 120).contains("f=json"));
+    }
 }
 
 pub fn stream_url(url: &str, auth: &Auth, song_id: &str) -> String {
