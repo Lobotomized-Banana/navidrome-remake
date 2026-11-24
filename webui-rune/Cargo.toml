@@ -1,0 +1,38 @@
+[workspace]
+resolver = "3"
+members = ["."]
+
+[package]
+name = "navidrome-webui"
+version = "0.1.0"
+edition = "2024"
+description = "A Rune-based web frontend for Navidrome Remake"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "navidrome-webui"
+path = "src/main.rs"
+
+[dependencies]
+# `webgl` gives a WebGL2 fallback when WebGPU is unavailable (e.g. when TrueNAS
+# is opened over plain HTTP on a LAN, which is not a secure context).
+rune = { path = "../rune/crates/rune", default-features = true, features = ["tooling", "webgl"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+# Rune vendors patched crates. Cargo does not inherit patches from another
+# workspace, so an external app must repeat them (same paths/Rune rev).
+[patch.crates-io]
+wgpu-hal = { path = "../rune/vendor/wgpu-hal" }
+winit = { path = "../rune/vendor/winit" }
+sctk-adwaita = { path = "../rune/vendor/sctk-adwaita" }
+parley_engine = { path = "../rune/vendor/parley_engine" }
+accesskit_windows = { path = "../rune/vendor/accesskit_windows" }
+accesskit_macos = { path = "../rune/vendor/accesskit_macos" }

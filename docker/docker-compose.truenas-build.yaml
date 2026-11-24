@@ -1,0 +1,36 @@
+# Alternative to the registry image: let TrueNAS build the image from source
+# using a Compose git build context. Still installed entirely through the web UI
+# (Apps -> Discover -> Custom App -> Install via YAML), no registry login needed.
+#
+# BEFORE PASTING:
+#  1. Push this workspace to a GitHub repo (see docker/README.md).
+#  2. Replace YOUR_USER/YOUR_REPO and the branch below.
+#  3. Replace the /mnt/... paths and TZ as in docker-compose.truenas.yaml.
+#
+# The first install takes a few minutes while Go modules are downloaded and the
+# binary is compiled on the TrueNAS host.
+
+name: navidrome-remake
+
+services:
+  navidrome-remake:
+    build:
+      context: https://github.com/YOUR_USER/YOUR_REPO.git#main
+      dockerfile: docker/Dockerfile
+    image: navidrome-remake:local
+    container_name: navidrome-remake
+    restart: unless-stopped
+    user: "568:568"
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "4533:4533"
+    environment:
+      ND_MUSICFOLDER: /music
+      ND_DATAFOLDER: /data
+      ND_CONFIGFILE: /data/navidrome.toml
+      ND_PORT: "4533"
+      TZ: America/New_York
+    volumes:
+      - /mnt/YOUR_POOL/music:/music:ro
+      - /mnt/YOUR_POOL/apps/navidrome-remake:/data

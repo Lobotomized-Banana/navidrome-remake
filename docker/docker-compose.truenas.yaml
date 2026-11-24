@@ -1,0 +1,32 @@
+# TrueNAS web UI -> Apps -> Discover -> Custom App -> Install via YAML
+#
+# BEFORE PASTING:
+#  1. Replace YOUR_GITHUB_USER with the GitHub user/org that published the image.
+#  2. Replace the two /mnt/... paths with your own TrueNAS datasets.
+#  3. Set TZ to your timezone.
+#  4. Create those datasets/folders and make them writable by uid/gid 568 (apps),
+#     or remove the `user:` line to run as root (less secure).
+#
+# Application name in the TrueNAS wizard: navidrome-remake
+
+name: navidrome-remake
+
+services:
+  navidrome-remake:
+    image: ghcr.io/YOUR_GITHUB_USER/navidrome-remake:latest
+    container_name: navidrome-remake
+    restart: unless-stopped
+    user: "568:568"
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "4533:4533"
+    environment:
+      ND_MUSICFOLDER: /music
+      ND_DATAFOLDER: /data
+      ND_CONFIGFILE: /data/navidrome.toml
+      ND_PORT: "4533"
+      TZ: America/New_York
+    volumes:
+      - /mnt/YOUR_POOL/music:/music:ro
+      - /mnt/YOUR_POOL/apps/navidrome-remake:/data

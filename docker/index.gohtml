@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Navidrome Remake</title>
+<script>window.__APP_CONFIG__ = {{ .AppConfig }};</script>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: none; }
+  #status { font: 16px system-ui, sans-serif; padding: 24px; }
+  #nd-audio { display: none; }
+</style>
+<div id="status">Loading Navidrome Remake…</div>
+<audio id="nd-audio" preload="none"></audio>
+<script type="module">
+import init from './app.js';
+try {
+  await init();
+  document.querySelector('#status').remove();
+} catch (error) {
+  document.querySelector('#status').textContent = String(error);
+  console.error(error);
+}
+</script>
+</html>
