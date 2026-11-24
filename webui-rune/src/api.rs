@@ -7,7 +7,7 @@
 use serde::Deserialize;
 
 #[derive(Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct Auth {
     pub username: String,
     pub token: String,
@@ -16,7 +16,7 @@ pub struct Auth {
 }
 
 #[derive(Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct Artist {
     pub id: String,
     pub name: String,
@@ -25,7 +25,7 @@ pub struct Artist {
 }
 
 #[derive(Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct Album {
     pub id: String,
     pub name: String,
@@ -39,7 +39,7 @@ pub struct Album {
 }
 
 #[derive(Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct Song {
     pub id: String,
     pub title: String,
@@ -436,6 +436,18 @@ mod tests {
         assert!(auth.query().contains("f=json"), "Subsonic defaults to XML");
         assert!(stream_url("http://host", &auth, "mf-1").contains("f=json"));
         assert!(cover_url("http://host", &auth, "al-1", 120).contains("f=json"));
+    }
+
+    #[test]
+    fn subsonic_optional_fields_can_be_absent() {
+        // Navidrome omits fields with omitempty (genre, coverArt, ...).
+        let body = r#"{"subsonic-response":{"status":"ok","albumList2":{"album":[
+            {"id":"al-1","name":"Abbey Road","songCount":17,"duration":2799,"year":1969}
+        ]},"searchResult3":{"song":[{"id":"mf-1","title":"Come Together"}]}}}"#;
+        let payload = parse_envelope(body).expect("missing optional fields must not fail");
+        assert_eq!(payload.albums[0].name, "Abbey Road");
+        assert_eq!(payload.albums[0].genre, "");
+        assert_eq!(payload.search.songs[0].title, "Come Together");
     }
 }
 
